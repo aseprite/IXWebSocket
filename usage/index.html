@@ -12,11 +12,11 @@
         <link href="../css/bootstrap.min.css" rel="stylesheet">
         <link href="../css/font-awesome.min.css" rel="stylesheet">
         <link href="../css/base.css" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css">
 
         <script src="../js/jquery-1.10.2.min.js" defer></script>
         <script src="../js/bootstrap.min.js" defer></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
         <script>hljs.initHighlightingOnLoad();</script> 
     </head>
 
@@ -41,9 +41,6 @@
                             </li>
                             <li class="navitem">
                                 <a href="../build/" class="nav-link">Build</a>
-                            </li>
-                            <li class="navitem">
-                                <a href="../cobra/" class="nav-link">Cobra</a>
                             </li>
                             <li class="navitem">
                                 <a href="../design/" class="nav-link">Design</a>
@@ -103,6 +100,10 @@
               </ul>
             </li>
             <li class="nav-item" data-level="2"><a href="#websocket-client-api" class="nav-link">WebSocket client API</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-level="2"><a href="#handshake-timeout" class="nav-link">Handshake timeout</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -205,6 +206,14 @@ webSocket.stop()
         return _connected;
     });
 </code></pre>
+<p>The <code>send()</code> and <code>sendText()</code> methods check that the string contains only valid UTF-8 characters. If you know that the string is a valid UTF-8 string you can skip that step and use the <code>sendUtf8Text</code> method instead.</p>
+<p>With the IXWebSocketSendData overloads of <code>sendUtf8Text</code> and <code>sendBinary</code> it is possible to not only send std::string but also <code>std::vector&lt;char&gt;</code>, <code>std::vector&lt;uint8_t&gt;</code> and <code>char*</code>.</p>
+<pre><code>std::vector&lt;uint8_t&gt; data({1, 2, 3, 4});
+auto result = webSocket.sendBinary(data);
+
+const char* text = &quot;Hello World!&quot;;
+result = webSocket.sendUtf8Text(IXWebSocketSendData(text, strlen(text)));
+</code></pre>
 <h3 id="readystate">ReadyState</h3>
 <p><code>getReadyState()</code> returns the state of the connection. There are 4 possible states.</p>
 <ol>
@@ -248,9 +257,9 @@ webSocket.stop()
         {
             std::stringstream ss;
             ss &lt;&lt; &quot;Error: &quot;         &lt;&lt; msg-&gt;errorInfo.reason      &lt;&lt; std::endl;
-            ss &lt;&lt; &quot;#retries: &quot;      &lt;&lt; msg-&gt;eventInfo.retries     &lt;&lt; std::endl;
-            ss &lt;&lt; &quot;Wait time(ms): &quot; &lt;&lt; msg-&gt;eventInfo.wait_time   &lt;&lt; std::endl;
-            ss &lt;&lt; &quot;HTTP Status: &quot;   &lt;&lt; msg-&gt;eventInfo.http_status &lt;&lt; std::endl;
+            ss &lt;&lt; &quot;#retries: &quot;      &lt;&lt; msg-&gt;errorInfo.retries     &lt;&lt; std::endl;
+            ss &lt;&lt; &quot;Wait time(ms): &quot; &lt;&lt; msg-&gt;errorInfo.wait_time   &lt;&lt; std::endl;
+            ss &lt;&lt; &quot;HTTP Status: &quot;   &lt;&lt; msg-&gt;errorInfo.http_status &lt;&lt; std::endl;
             std::cout &lt;&lt; ss.str() &lt;&lt; std::endl;
         }
     }
@@ -329,9 +338,18 @@ Wait time(ms): 6400
 #retries: 8
 Wait time(ms): 10000
 </code></pre>
-<p>The waiting time is capped by default at 10s between 2 attempts, but that value can be changed and queried.</p>
+<p>The waiting time is capped by default at 10s between 2 attempts, but that value
+can be changed and queried. The minimum waiting time can also be set.</p>
 <pre><code class="language-cpp">webSocket.setMaxWaitBetweenReconnectionRetries(5 * 1000); // 5000ms = 5s
 uint32_t m = webSocket.getMaxWaitBetweenReconnectionRetries();
+
+webSocket.setMinWaitBetweenReconnectionRetries(1000); // 1000ms = 1s
+uint32_t m = webSocket.getMinWaitBetweenReconnectionRetries();
+</code></pre>
+<h2 id="handshake-timeout">Handshake timeout</h2>
+<p>You can control how long to wait until timing out while waiting for the websocket handshake to be performed.</p>
+<pre><code>int handshakeTimeoutSecs = 1;
+setHandshakeTimeout(handshakeTimeoutSecs);
 </code></pre>
 <h2 id="websocket-server-api">WebSocket server API</h2>
 <h3 id="legacy-api">Legacy api</h3>
@@ -400,6 +418,10 @@ if (!res.first)
     return 1;
 }
 
+// Per message deflate connection is enabled by default. It can be disabled
+// which might be helpful when running on low power devices such as a Rasbery Pi
+server.disablePerMessageDeflate();
+
 // Run the server in the background. Server can be stoped by calling server.stop()
 server.start();
 
@@ -418,13 +440,10 @@ server.wait();
 // Bound host name, max connections and listen backlog can also be passed in as parameters.
 ix::WebSocketServer server(port);
 
-server.setOnClientMessageCallback(std::shared_ptr&lt;ConnectionState&gt; connectionState,
-                                  WebSocket&amp; webSocket,
-                                  const WebSocketMessagePtr&amp; msg)
-{
+server.setOnClientMessageCallback([](std::shared_ptr&lt;ix::ConnectionState&gt; connectionState, ix::WebSocket &amp; webSocket, const ix::WebSocketMessagePtr &amp; msg) {
     // The ConnectionState object contains information about the connection,
     // at this point only the client ip address and the port.
-    std::cout &lt;&lt; &quot;Remote ip: &quot; &lt;&lt; connectionState-&gt;getRemoteIp();
+    std::cout &lt;&lt; &quot;Remote ip: &quot; &lt;&lt; connectionState-&gt;getRemoteIp() &lt;&lt; std::endl;
 
     if (msg-&gt;type == ix::WebSocketMessageType::Open)
     {
@@ -442,7 +461,7 @@ server.setOnClientMessageCallback(std::shared_ptr&lt;ConnectionState&gt; connect
         std::cout &lt;&lt; &quot;Headers:&quot; &lt;&lt; std::endl;
         for (auto it : msg-&gt;openInfo.headers)
         {
-            std::cout &lt;&lt; it.first &lt;&lt; &quot;: &quot; &lt;&lt; it.second &lt;&lt; std::endl;
+            std::cout &lt;&lt; &quot;\t&quot; &lt;&lt; it.first &lt;&lt; &quot;: &quot; &lt;&lt; it.second &lt;&lt; std::endl;
         }
     }
     else if (msg-&gt;type == ix::WebSocketMessageType::Message)
@@ -451,9 +470,11 @@ server.setOnClientMessageCallback(std::shared_ptr&lt;ConnectionState&gt; connect
         // All connected clients are available in an std::set. See the broadcast cpp example.
         // Second parameter tells whether we are sending the message in binary or text mode.
         // Here we send it in the same mode as it was received.
+        std::cout &lt;&lt; &quot;Received: &quot; &lt;&lt; msg-&gt;str &lt;&lt; std::endl;
+
         webSocket.send(msg-&gt;str, msg-&gt;binary);
     }
-);
+});
 
 auto res = server.listen();
 if (!res.first)
@@ -461,6 +482,10 @@ if (!res.first)
     // Error handling
     return 1;
 }
+
+// Per message deflate connection is enabled by default. It can be disabled
+// which might be helpful when running on low power devices such as a Rasbery Pi
+server.disablePerMessageDeflate();
 
 // Run the server in the background. Server can be stoped by calling server.stop()
 server.start();
@@ -546,15 +571,28 @@ bool async = true;
 HttpClient httpClient(async);
 auto args = httpClient.createRequest(url, HttpClient::kGet);
 
+// If you define a chunk callback it will be called repeteadly with the
+// incoming data. This allows to process data on the go or write it to disk
+// instead of accumulating the data in memory.
+args.onChunkCallback = [](const std::string&amp; data)
+{
+    // process data
+};
+
 // Push the request to a queue,
 bool ok = httpClient.performRequest(args, [](const HttpResponsePtr&amp; response)
     {
         // This callback execute in a background thread. Make sure you uses appropriate protection such as mutex
         auto statusCode = response-&gt;statusCode; // acess results
+
+        // response-&gt;body is empty if onChunkCallback was used
     }
 );
 
 // ok will be false if your httpClient is not async
+
+// A request in progress can be cancelled by setting the cancel flag. It does nothing if the request already completed.
+args-&gt;cancel = true;
 </code></pre>
 <p>See this <a href="https://github.com/machinezone/IXWebSocket/issues/209">issue</a> for links about uploading files with HTTP multipart.</p>
 <h2 id="http-server-api">HTTP server API</h2>
@@ -639,16 +677,13 @@ server.wait();
                 <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
             </div>
             <div class="modal-body">
-                <p>
-                    From here you can search these documents. Enter
-                    your search terms below.
-                </p>
+                <p>From here you can search these documents. Enter your search terms below.</p>
                 <form>
                     <div class="form-group">
                         <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
                     </div>
                 </form>
-                <div id="mkdocs-search-results"></div>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
             </div>
             <div class="modal-footer">
             </div>

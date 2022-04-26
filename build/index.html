@@ -12,11 +12,11 @@
         <link href="../css/bootstrap.min.css" rel="stylesheet">
         <link href="../css/font-awesome.min.css" rel="stylesheet">
         <link href="../css/base.css" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css">
 
         <script src="../js/jquery-1.10.2.min.js" defer></script>
         <script src="../js/bootstrap.min.js" defer></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
         <script>hljs.initHighlightingOnLoad();</script> 
     </head>
 
@@ -41,9 +41,6 @@
                             </li>
                             <li class="navitem active">
                                 <a href="./" class="nav-link">Build</a>
-                            </li>
-                            <li class="navitem">
-                                <a href="../cobra/" class="nav-link">Cobra</a>
                             </li>
                             <li class="navitem">
                                 <a href="../design/" class="nav-link">Design</a>
@@ -74,7 +71,7 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a rel="next" href="../cobra/" class="nav-link">
+                                <a rel="next" href="../design/" class="nav-link">
                                     Next <i class="fa fa-arrow-right"></i>
                                 </a>
                             </li>
@@ -118,13 +115,13 @@ make install # will install to /usr/local on Unix, on macOS it is a good idea to
 There is a unittest which can be executed by typing <code>make test</code>.</p>
 <p>Options for building:</p>
 <ul>
+<li><code>-DBUILD_SHARED_LIBS=ON</code> will build the unittest as a shared libary instead of a static library, which is the default</li>
 <li><code>-DUSE_ZLIB=1</code> will enable zlib support, required for http client + server + websocket per message deflate extension</li>
 <li><code>-DUSE_TLS=1</code> will enable TLS support</li>
-<li><code>-DUSE_OPEN_SSL=1</code> will use <a href="https://www.openssl.org/">openssl</a> for the TLS support (default on Linux and Windows)</li>
+<li><code>-DUSE_OPEN_SSL=1</code> will use <a href="https://www.openssl.org/">openssl</a> for the TLS support (default on Linux and Windows). When using a custom version of openssl (say a prebuilt version, odd runtime problems can happens, as in #319, and special cmake trickery will be required (see this <a href="https://github.com/machinezone/IXWebSocket/issues/175#issuecomment-620231032">comment</a>)</li>
 <li><code>-DUSE_MBED_TLS=1</code> will use <a href="https://tls.mbed.org/">mbedlts</a> for the TLS support</li>
 <li><code>-DUSE_WS=1</code> will build the ws interactive command line tool</li>
 <li><code>-DUSE_TEST=1</code> will build the unittest</li>
-<li><code>-DUSE_PYTHON=1</code> will use Python3 for cobra bots, require Python3 to be installed.</li>
 </ul>
 <p>If you are on Windows, look at the <a href="https://github.com/machinezone/IXWebSocket/blob/master/appveyor.yml">appveyor</a> file (not maintained much though) or rather the <a href="https://github.com/machinezone/IXWebSocket/blob/master/.github/workflows/unittest_windows.yml">github actions</a> which have instructions for building dependencies.</p>
 <p>It is also possible to externally include the project, so that everything is fetched over the wire when you build like so:</p>
@@ -195,16 +192,13 @@ ws is a websocket tool
                 <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
             </div>
             <div class="modal-body">
-                <p>
-                    From here you can search these documents. Enter
-                    your search terms below.
-                </p>
+                <p>From here you can search these documents. Enter your search terms below.</p>
                 <form>
                     <div class="form-group">
                         <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
                     </div>
                 </form>
-                <div id="mkdocs-search-results"></div>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
             </div>
             <div class="modal-footer">
             </div>
